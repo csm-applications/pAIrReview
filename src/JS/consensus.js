@@ -17,22 +17,26 @@ function getMatchMode() {
 }
 
 function calculateConsensus(first, second) {
-    if (first !== -1 && second !== -1 && first === second) return first;
-    if (first === -1) return second;
-    if (second === -1) return first;
-    return Math.min(first, second);
+    const a = Number(first ?? -1);
+    const b = Number(second ?? -1);
+
+    if (a !== -1 && b !== -1 && a === b) return a;
+    if (a === -1) return b;
+    if (b === -1) return a;
+    return Math.min(a, b);
 }
 
 function computeConsensusValues(study) {
     const consensus = {};
+    // corrected property name: secondModelDecision
     const allCriteria = new Set([
         ...Object.keys(study.firstModelDecision || {}),
-        ...Object.keys(study.secondModelOpinion || {})
+        ...Object.keys(study.secondModelDecision || {})
     ]);
 
     allCriteria.forEach(key => {
-        const f = study.firstModelDecision?.[key] ?? -1;
-        const s = study.secondModelOpinion?.[key] ?? -1;
+        const f = Number(study.firstModelDecision?.[key] ?? -1);
+        const s = Number(study.secondModelDecision?.[key] ?? -1);
         consensus[key] = calculateConsensus(f, s);
     });
 
@@ -44,17 +48,28 @@ function passesCriteria(output, config) {
     const inclusionCriteria = Object.keys(config).filter(k => k.startsWith('IC'));
     const exclusionCriteria = Object.keys(config).filter(k => k.startsWith('EC'));
 
+    // Inclusion
     let inclusionPass = false;
     if (inclusionCriteria.length === 0) inclusionPass = true;
-    else if (inclusionMode === 'all') inclusionPass = inclusionCriteria.every(c => output[c] !== undefined && output[c] >= config[c]);
-    else if (inclusionMode === 'one') inclusionPass = inclusionCriteria.some(c => output[c] !== undefined && output[c] >= config[c]);
+    else if (inclusionMode === 'all') {
+        inclusionPass = inclusionCriteria.every(c => (output[c] ?? -1) !== -1 && Number(output[c]) >= config[c]);
+    } else { // 'one'
+        inclusionPass = inclusionCriteria.some(c => (output[c] ?? -1) !== -1 && Number(output[c]) >= config[c]);
+    }
 
-    let exclusionPass = false;
-    if (exclusionCriteria.length === 0) exclusionPass = false;
-    else if (exclusionMode === 'all') exclusionPass = exclusionCriteria.every(c => output[c] !== undefined && output[c] <= config[c]);
-    else if (exclusionMode === 'one') exclusionPass = exclusionCriteria.some(c => output[c] !== undefined && output[c] <= config[c]);
+    // Exclusion: determine if any exclusion criteria are TRIGGERED
+    let exclusionTriggered = false;
+    if (exclusionCriteria.length === 0) exclusionTriggered = false;
+    else if (exclusionMode === 'all') {
+        // triggered only if ALL exclusion criteria meet or exceed thresholds
+        exclusionTriggered = exclusionCriteria.every(c => (output[c] ?? -1) !== -1 && Number(output[c]) >= config[c]);
+    } else { // 'one'
+        // triggered if ANY exclusion criterion meets or exceeds threshold
+        exclusionTriggered = exclusionCriteria.some(c => (output[c] ?? -1) !== -1 && Number(output[c]) >= config[c]);
+    }
 
-    return inclusionPass && !exclusionPass;
+    // include only if inclusion passed AND no exclusion was triggered
+    return inclusionPass && !exclusionTriggered;
 }
 
 function generateDynamicCriteriaFormFromPreferences() {
@@ -70,7 +85,7 @@ function generateDynamicCriteriaFormFromPreferences() {
         input.name = `IC${idx + 1}`;
         input.min = 1;
         input.max = 7;
-        input.value = 4;
+        input.value = 6;
 
         const label = document.createElement('label');
         label.innerText = crit;
@@ -87,7 +102,7 @@ function generateDynamicCriteriaFormFromPreferences() {
         input.name = `EC${idx + 1}`;
         input.min = 1;
         input.max = 7;
-        input.value = 2;
+        input.value = 6;
 
         const label = document.createElement('label');
         label.innerText = crit;
@@ -106,13 +121,14 @@ function generateDynamicCriteriaFormFromPreferences() {
 function parseDecisionString(decisionStr) {
     if (!decisionStr || typeof decisionStr !== "string") return {};
 
-    const lines = decisionStr.trim().split("\n").slice(1); // ignora cabeçalho "Criteria, Rate"
+    const lines = decisionStr.trim().split("\n").slice(1); // keep same format you used
     const decisionObj = {};
 
     lines.forEach(line => {
         const [criteria, rate] = line.split(",").map(s => s.trim());
-        if (criteria && rate !== undefined) {
-            decisionObj[criteria] = rate;
+        if (criteria && rate !== undefined && rate !== "") {
+            const n = Number(rate);
+            decisionObj[criteria] = Number.isNaN(n) ? rate : n;
         }
     });
 
@@ -121,13 +137,14 @@ function parseDecisionString(decisionStr) {
 
 function renderStudies() {
     const config = getConfidenceConfig();
+
     const container = document.getElementById("cardsContainer");
     container.innerHTML = "";
 
     let included = 0, excluded = 0;
 
     hilResponses.forEach((study, idx) => {
-        // 🔹 garantir que as decisões estão em objeto
+
         if (typeof study.firstModelDecision === "string") {
             study.firstModelDecision = parseDecisionString(study.firstModelDecision);
         }
@@ -137,9 +154,7 @@ function renderStudies() {
 
         const consensus = computeConsensusValues(study);
 
-        if (study.userDecision !== "Include" && study.userDecision !== "Exclude") {
-            study.userDecision = passesCriteria(consensus, config) ? "Include" : "Exclude";
-        }
+        study.userDecision = passesCriteria(consensus, config) ? "Include" : "Exclude";
         if (study.userDecision === "Include") included++; else excluded++;
 
         const allCriteria = Object.keys(consensus);

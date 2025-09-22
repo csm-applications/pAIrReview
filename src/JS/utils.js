@@ -61,9 +61,11 @@ function handleExcelFile(file) {
 
             const firstSheetName = workbook.SheetNames[0];
             const worksheet = workbook.Sheets[firstSheetName];
+            
+
 
             const jsonData = XLSX.utils.sheet_to_json(worksheet, { defval: "" });
-
+            console.log(jsonData)
             if (jsonData.length === 0) {
                 alert("Planilha vazia ou sem dados válidos.");
                 return;
@@ -81,13 +83,14 @@ function handleExcelFile(file) {
 
 function processFile(file) {
     const name = file.name.toLowerCase();
+   
 
     if (name.endsWith(".json")) {
         handleJsonFile(file);
     } else if (name.endsWith(".bib")) {
         handleBibFile(file);
     } else if (name.endsWith(".xlsx") || name.endsWith(".xls")) {
-        handleExcelFile(file); // Agora cobre ambos
+        handleExcelFile(file); 
     } else {
         alert("Por favor selecione um arquivo .json, .bib, .xlsx ou .xls válido.");
     }
