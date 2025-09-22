@@ -260,7 +260,7 @@ function saveData(data) {
 function saveFile(jsonData, fileName) {
     localStorage.setItem("uploadedJsonFile", JSON.stringify(jsonData));
     localStorage.setItem("uploadedJsonFileName", fileName);
-    fileNameDisplay.textContent = "Arquivo carregado: " + fileName;
+    fileNameDisplay.textContent = "File loaded: " + fileName;
 }
 
 
