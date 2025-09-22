@@ -1,4 +1,9 @@
-// Função que dispara o envio em sequência
+const template = "felizardo";
+let selectedStudiesData = [];
+
+
+// API controls (ollama)
+
 async function generateAllResponses() {
   const startTime = performance.now(); // ⏱️ Start timer
 
@@ -26,7 +31,6 @@ async function generateAllResponses() {
   alert(`✅ Todas as respostas foram geradas!\n⏱️ Tempo total: ${minutes}m ${seconds}s`);
 }
 
-// Versão adaptada do sendPrompt para retornar Promise
 async function sendPromptSequential(promptId, textareaId) {
   const llmhost = document.querySelector("#llmUrlInput");
   const prompt = document.getElementById(promptId).innerText;
@@ -75,7 +79,6 @@ async function sendPromptSequential(promptId, textareaId) {
   }
 }
 
-// Vincula o botão "Generate Responses from LLM"
 document.addEventListener("DOMContentLoaded", () => {
   loadDataset();
 
@@ -83,11 +86,57 @@ document.addEventListener("DOMContentLoaded", () => {
     .addEventListener("click", generateAllResponses);
 });
 
+async function sendPrompt(promptId, textareaId) {
+  const llmhost = document.querySelector("#llmUrlInput");
+  const prompt = document.getElementById(promptId).innerText;
+  const textarea = document.getElementById(textareaId);
 
-// ============================
-// Utility functions
-// ============================
+  // Show waiting state
+  textarea.value = '⏳ Waiting for response from server...';
 
+  try {
+    const response = await fetch(llmhost.value, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'llama3.2',
+        messages: [{ role: 'user', content: prompt }],
+        stream: true
+      })
+    });
+
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder('utf-8');
+    let resultado = '';
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+
+      const chunk = decoder.decode(value, { stream: true });
+      const linhas = chunk.split('\n').filter(l => l.trim() !== '');
+
+      for (const linha of linhas) {
+        try {
+          const obj = JSON.parse(linha);
+          if (obj.message?.content) {
+            resultado += obj.message.content;
+            textarea.value = resultado;
+          }
+        } catch (e) {
+          console.warn('Linha inválida:', linha);
+        }
+      }
+    }
+  } catch (erro) {
+    console.error('Erro ao chamar Ollama local:', erro);
+    textarea.value = '❌ Ocorreu um erro ao chamar o servidor.';
+  }
+}
+window.sendPrompt = sendPrompt;
+
+
+// Criteria manipulation
 
 function buildCriteriaText(inclusion, exclusion) {
   const inc = inclusion.map((c, i) => `- IC${i + 1}: ${c}`);
@@ -132,11 +181,23 @@ function bindSaveEvents() {
   });
 }
 
-// ============================
-// Load JSON studies from localStorage and display them
-// ============================
-const template = "felizardo";
-let selectedStudiesData = [];
+
+// screen controls
+
+document.addEventListener('click', function (event) {
+  if (event.target.classList.contains('copy-btn')) {
+    const targetId = event.target.getAttribute('data-target');
+    const textToCopy = document.getElementById(targetId).innerText;
+
+    navigator.clipboard.writeText(textToCopy).then(() => {
+      event.target.innerText = 'Copied!';
+      setTimeout(() => { event.target.innerText = 'Copy'; }, 2000);
+    }).catch(() => { alert('Failed to copy text.'); });
+  }
+});
+
+
+// Loads and persistence
 
 async function loadDataset() {
   try {
@@ -157,7 +218,7 @@ async function loadDataset() {
             window.location.href = "my-reviews.html";
           });
         }
-      }, 200); 
+      }, 200);
     }
 
 
@@ -229,73 +290,6 @@ async function loadDataset() {
   }
 }
 
-async function sendPrompt(promptId, textareaId) {
-  const llmhost = document.querySelector("#llmUrlInput");
-  const prompt = document.getElementById(promptId).innerText;
-  const textarea = document.getElementById(textareaId);
-
-  // Show waiting state
-  textarea.value = '⏳ Waiting for response from server...';
-
-  try {
-    const response = await fetch(llmhost.value, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        model: 'llama3.2',
-        messages: [{ role: 'user', content: prompt }],
-        stream: true
-      })
-    });
-
-    const reader = response.body.getReader();
-    const decoder = new TextDecoder('utf-8');
-    let resultado = '';
-
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-
-      const chunk = decoder.decode(value, { stream: true });
-      const linhas = chunk.split('\n').filter(l => l.trim() !== '');
-
-      for (const linha of linhas) {
-        try {
-          const obj = JSON.parse(linha);
-          if (obj.message?.content) {
-            resultado += obj.message.content;
-            textarea.value = resultado;
-          }
-        } catch (e) {
-          console.warn('Linha inválida:', linha);
-        }
-      }
-    }
-  } catch (erro) {
-    console.error('Erro ao chamar Ollama local:', erro);
-    textarea.value = '❌ Ocorreu um erro ao chamar o servidor.';
-  }
-}
-window.sendPrompt = sendPrompt;
-
-// ============================
-// Clipboard copy
-// ============================
-document.addEventListener('click', function (event) {
-  if (event.target.classList.contains('copy-btn')) {
-    const targetId = event.target.getAttribute('data-target');
-    const textToCopy = document.getElementById(targetId).innerText;
-
-    navigator.clipboard.writeText(textToCopy).then(() => {
-      event.target.innerText = 'Copied!';
-      setTimeout(() => { event.target.innerText = 'Copy'; }, 2000);
-    }).catch(() => { alert('Failed to copy text.'); });
-  }
-});
-
-// ============================
-// Initial load
-// ============================
 window.addEventListener("DOMContentLoaded", () => {
   loadDataset();
 });
