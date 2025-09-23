@@ -1,11 +1,13 @@
 FROM nginx:alpine
 
-# Apaga config padrão e coloca a sua
+# Remove configuração default
 RUN rm /etc/nginx/conf.d/default.conf
+
+# Copia a sua config customizada
 COPY nginx.conf /etc/nginx/conf.d/default.conf
 
-# Copia a pasta public para dentro do container
-COPY public/ /usr/share/nginx/html/
+# Copia os arquivos do app
+COPY ./public/ /usr/share/nginx/html/
 
 EXPOSE 80
 
