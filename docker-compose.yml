@@ -1,0 +1,9 @@
+version: "3.8"
+
+services:
+  web:
+    container_name: pAIrReview
+    build: .
+    ports:
+      - "3300:80"
+    restart: unless-stopped
