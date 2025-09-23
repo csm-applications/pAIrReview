@@ -2,7 +2,7 @@
 
 pAIrReview is a prototype to help researchers during the **study selection phase** of **Systematic Literature Reviews (SLRs)**. Its primary objective is to enhance the use of **Large Language Models (LLMs)** by making them more **reliable, transparent, and less prone to bias**. 
 
-(Click to access the tool)[https://csm-applications.github.io/pAIrReview/public]
+[🖥️ click to access!](https://csm-applications.github.io/pAIrReview/public)
 
 ---
 
